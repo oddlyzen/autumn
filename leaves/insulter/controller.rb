@@ -7,7 +7,12 @@ class Controller < Autumn::Leaf
   
   def insult_command(stem, sender, reply_to, msg)
     if msg.nil? then render :help
-    else insult msg.capitalize end
+    else insult(msg.capitalize, false) end
+  end
+  
+  def pirate_command(stem, sender, reply_to, msg)
+    if msg.nil? then render :help
+    else insult(msg.capitalize, true) end
   end
   
   # Displays information about the leaf.
@@ -16,6 +21,11 @@ class Controller < Autumn::Leaf
   end
   
   private
+  
+  PIRATESE_PREFIXES = [
+    'Arrgh, ', 'Aye, ', 'Shiver me timbers! ', '(Unintelligible Pirate Murmur)... ',
+    'Thar she blows! ', 'Aye, that\'s what she said. Moo-ar-harharhar. '
+  ]
   
   ADJECTIVES = [
     'an artless', 'a bawdy', 'a beslubbering', 'a bootless', 'a churlish',
@@ -56,10 +66,18 @@ class Controller < Autumn::Leaf
     'varlet', 'vassal', 'wagtail', 'whey-face'
   ]
   
-  def insult(victim)
+  PIRATESE_COMMANDS = [
+    'Now, walk the plank, pond-scum!', 'Well, blow me down.', 'Scrub the deck, scalliwag!', 'Make like my eye and vanish, you queer little jolly-boy!',
+    'We\'ll be dropping yer carcass off next landing.', 'Just throw the bugger in and let the sharks sort it out, arrrrrggh.', 'I\'ll make you clean out my eye-socket with yer tongue, matey...'
+  ]
+  
+  def insult(victim, piratese)
     var :adjective => ADJECTIVES.pick
     var :participle => PARTICIPLES.pick
     var :noun => NOUNS.pick
     var :victim => victim
+    var :piratese? => piratese
+    var :prefix => PIRATESE_PREFIXES.pick
+    var :command => PIRATESE_COMMANDS.pick
   end
 end
