@@ -65,19 +65,25 @@ class Controller < Autumn::Leaf
     synchronize_with_server(records)
   end
   
+  def gist_command(stem, sender, reply_to, msg)
+    # hmmm...
+  end
+  
+  
+  
   def about_command(stem, sender, reply_to, msg)
     'Lurch is a time-keeping bot (Autumn Leaf) developed by Mark Coates & Noah Sussman at ZepFrog Corp. http://zepfrog.com/development'
   end
   
   private
-  API_KEY = 'eacb7258085b816a1ea0fadcade69e'
+  
   def init_slim_timer
-    @timer = SlimTimer.new('mcoates@zepinvest.com', 'whoami23', API_KEY)
+    @timer = SlimTimer.new(options[:st_user], options[:st_password], options[:st_api_key])
   end
   def synchronize_with_server(records)
     init_slim_timer
     records.each do |r|
-      # Update SlimTimer throgh an API call for each record.
+      @timer.create_timeentry r.started_at, r.time_elapsed, r.id, r.ended_at, r.tags
     end
   end
   
@@ -86,7 +92,7 @@ end
 
 module Timing
   class Task < Object
-    attr_accessor :user, :description, :total_time, :ended_at, :started_at
+    attr_accessor :user, :description, :total_time, :ended_at, :started_at, :tags
     def initialize(args={})
       @started_at = Time.now
       @user = args[:user]
@@ -96,6 +102,7 @@ module Timing
       @reporter_emails = args[:reporter_emails] || nil
       @ended_at = nil
       @total_time = 0.0
+      @tags = []
     end
     
     def end!(reason)
