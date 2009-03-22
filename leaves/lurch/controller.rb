@@ -10,17 +10,10 @@ class Controller < Autumn::Leaf
   end
   
   def task_command(stem, sender, reply_to, msg)
-    init_slim_timer
+    #init_slim_timer
     task = Timing::Task.new(:user => sender, :description => msg)
     var :msg => msg
     @@TASKS << task
-    # @args = msg.split(",")
-    # var :name => (@args[0] ||= 'Testing')
-    #     var :tags => (@args[1].split("/"))
-    #     var :coworker_emails => (@args[2].split("/"))
-    #     var :reporter_emails => (@args[3].split("/"))
-    #     var :completed_on => (@args[4] ||= nil)
-    #@timer.create_task(:name, :tags, :coworker_emails, :reporter_emails, :completed_on)
   end
   
   def interrupt_command(stem, sender, reply_to, msg)
@@ -28,14 +21,13 @@ class Controller < Autumn::Leaf
       tasks = []
       if t.user == sender
         t.end! "Interrupted! '#{msg}'"
-        tasks << t
-        rupt = Timing::Interruption.new(:user => sender, :description => msg)
-
-        @@INTERRUPTIONS << rupt
+        rupt = Timing::Interruption.new(:user => sender, :description => msg)\
       end
-      var :tasks => tasks
-      var :msg => msg
+      tasks << t
+      @@INTERRUPTIONS << rupt
     end
+    var :tasks => tasks
+    var :msg => msg
   end
   
   def resume_command(stem, sender, reply_to, msg)
@@ -50,6 +42,25 @@ class Controller < Autumn::Leaf
     end
   end
   
+  def end_command(stem, sender, reply_to, msg)
+    records = []
+    @@INTERRUPTIONS.each do |i|
+      if i.user == sender
+        records << i
+        i.end! "#{msg}"
+      end
+      @@INTERRUPTIONS.delete i
+    end
+    @@TASKS.each do |t|
+      if t.user == sender
+        records << t
+        t.end! "#{msg}"
+      end
+      @@TASKS.delete t
+    end
+    synchronize_with_server(records)
+  end
+  
   def about_command(stem, sender, reply_to, msg)
     'Lurch is a time-keeping bot (Autumn Leaf) developed by Mark Coates & Noah Sussman at ZepFrog Corp. http://zepfrog.com/development'
   end
@@ -58,6 +69,12 @@ class Controller < Autumn::Leaf
   API_KEY = 'eacb7258085b816a1ea0fadcade69e'
   def init_slim_timer
     @timer = SlimTimer.new('mcoates@zepinvest.com', 'whoami23', API_KEY)
+  end
+  def synchronize_with_server(records)
+    init_slim_timer
+    records.each do |r|
+      # Update SlimTimer throgh an API call for each record.
+    end
   end
   
 end
