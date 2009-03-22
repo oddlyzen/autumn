@@ -1,13 +1,9 @@
 --- 
 Administrator: 
   authentication: 
-    type: nick
-    nick: bitpimpin
-    pass: whoami23
+    type: op
   class: Administrator
 Scorekeeper: 
   class: Scorekeeper
 Insulter: 
   class: Insulter
-Lurch:
-  class: Lurch

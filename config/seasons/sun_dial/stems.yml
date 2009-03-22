@@ -1,12 +1,10 @@
 --- 
-Lurch: 
+Example: 
   nick: lurch_bot
-  password: whoami23
   leaves: 
   - Administrator
   - Scorekeeper
   - Insulter
-  - Lurch
   rejoin: true
-  channel: "##zepinvest"
-  server: chat.us.freenode.net
+  channel: "#zepinvest"
+  server: irc.yourircserver.com
