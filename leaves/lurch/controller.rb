@@ -17,8 +17,8 @@ class Controller < Autumn::Leaf
   end
   
   def interrupt_command(stem, sender, reply_to, msg)
+    tasks = []
     @@TASKS.each do |t|
-      tasks = []
       if t.user == sender
         t.end! "Interrupted! '#{msg}'"
         rupt = Timing::Interruption.new(:user => sender, :description => msg)\
@@ -34,12 +34,15 @@ class Controller < Autumn::Leaf
     @@INTERRUPTIONS.each do |i|
       if i.user == sender
         i.end! "RESUMING TASK (#{msg})"
-        var :msg => msg
-        @@TASKS.each do |t|
-          t.resume! "#{msg}"
-        end
       end
     end
+    tasks = []
+    @@TASKS.each do |t|
+      t.resume! "#{msg}"
+      tasks << t
+    end
+    var :tasks => tasks
+    var :msg => msg
   end
   
   def end_command(stem, sender, reply_to, msg)
@@ -58,6 +61,7 @@ class Controller < Autumn::Leaf
       end
       @@TASKS.delete t
     end
+    var :records => records
     synchronize_with_server(records)
   end
   
@@ -82,7 +86,7 @@ end
 
 module Timing
   class Task < Object
-    attr_accessor :user, :description
+    attr_accessor :user, :description, :total_time, :ended_at, :started_at
     def initialize(args={})
       @started_at = Time.now
       @user = args[:user]
@@ -91,18 +95,22 @@ module Timing
       @coworker_emails = args[:coworker_emails] || nil
       @reporter_emails = args[:reporter_emails] || nil
       @ended_at = nil
-      @total_time = 0
+      @total_time = 0.0
     end
     
     def end!(reason)
       @ended_at = Time.now
-      @total_time += time_elapsed
+      @total_time = time_elapsed + (@total_time || 0)
     end
     def current_time
       Time.now
     end
     def time_elapsed
-      (current_time - @started_at) if @ended_at.nil? else (@ended_at - @started_at)
+      if @ended_at.nil?
+        current_time - @started_at 
+      else 
+        @ended_at - @started_at
+      end
     end
     def tags
       @tags || nil
