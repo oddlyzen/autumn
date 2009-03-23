@@ -5,8 +5,6 @@ Administrator:
     nick: bitpimpin
     pass: whoami23
   class: Administrator
-Scorekeeper: 
-  class: Scorekeeper
 Insulter: 
   class: Insulter
 Lurch:

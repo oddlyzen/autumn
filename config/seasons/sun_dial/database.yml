@@ -1,7 +1,0 @@
---- 
-SunDial: 
-  username: root
-  adapter: mysql
-  host: localhost
-  database: sun_dial
-  password: ""

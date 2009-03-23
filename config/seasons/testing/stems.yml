@@ -4,7 +4,6 @@ Lurch:
   password: whoami23
   leaves: 
   - Administrator
-  - Scorekeeper
   - Insulter
   - Lurch
   rejoin: true

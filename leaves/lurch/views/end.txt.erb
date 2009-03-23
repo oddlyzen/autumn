@@ -1,3 +1,4 @@
 <% var(:records).each do |r| %>
   ENDED & SYNCHED with server! <%= r.description %>
 <% end %>
+<%= ("Error >>> " +  var(:exception)) if var(:exception) %>
