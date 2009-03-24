@@ -66,7 +66,7 @@ class Controller < Autumn::Leaf
     begin
       synchronize_with_server(records)
     rescue StandardError => bang
-      var :exception => "An error occurred. (#{bang})"
+      var :exception => "An error occurred: (#{bang})"
     end
   end
   
