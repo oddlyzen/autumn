@@ -1,27 +1,31 @@
-
 require 'slimtimer4r'
 
 class Controller < Autumn::Leaf
   @@TASKS=[]
   @@INTERRUPTIONS=[]
   
-  def start_command(stem, sender, reply_to, msg)
-    #@timer.create_timeentry(DateTime.now, )
-  end
-  
   def task_command(stem, sender, reply_to, msg)
     #init_slim_timer
     task = Timing::Task.new(:user => sender, :description => msg)
     var :msg => msg
+    var :id => task.id
     @@TASKS << task
+  end
+  
+  def tasks_command(stem, sender, reply_to, msg)
+    @@TASKS.each do |t|
+      if t.user == sender
+        stem.message "<ID:#{t.id}> '#{t.description}' (#{t.total_time == 0 ? t.time_elapsed : t.total_time + t.time_elapsed} seconds) #{('| Tagged: ' + t.tags.join(", ") + '.') unless t.tags.nil? || t.tags.empty?}"
+      end
+    end    
   end
   
   def interrupt_command(stem, sender, reply_to, msg)
     tasks = []
     @@TASKS.each do |t|
       if t.user == sender
-        t.end! "Interrupted! '#{msg}'"
-        rupt = Timing::Interruption.new(:user => sender, :description => msg)\
+        t.pause! "Interrupted! '#{msg}'"
+        rupt = Timing::Interruption.new(:user => sender, :description => msg)
       end
       tasks << t
       @@INTERRUPTIONS << rupt
@@ -48,10 +52,7 @@ class Controller < Autumn::Leaf
   def end_command(stem, sender, reply_to, msg)
     records = []
     @@INTERRUPTIONS.each do |i|
-      if i.user == sender
-        records << i
-        i.end! "#{msg}"
-      end
+      records << i      
       @@INTERRUPTIONS.delete i
     end
     @@TASKS.each do |t|
@@ -64,8 +65,8 @@ class Controller < Autumn::Leaf
     var :records => records
     begin
       synchronize_with_server(records)
-    rescue
-      var :exception => "An error occurred."
+    rescue StandardError => bang
+      var :exception => "An error occurred. (#{bang})"
     end
   end
   
@@ -74,19 +75,32 @@ class Controller < Autumn::Leaf
   end
   
   def tag_command(stem, sender, reply_to, msg)
-    tags = msg.split(',')
-    @@TASKS.each do |t|
-      if t.user == sender
-        tags.each do |tag|
-          t.tag! tag
+    if msg.nil?
+      render :tag_help
+    else
+      args = msg.split(" ")
+      id   = args[0].to_i
+      tags = args[1].split(',')
+      records = @@TASKS + @@INTERRUPTIONS
+      records.each do |t|
+        if t.id == id
+          stem.message "Found object <#{id}>:"
+          tags.each do |tag|
+            t.tag! tag
+          end
         end
       end
+      var :tags => tags.join(',')
     end
-    var :tags => tags.join(',')
+  end
+  
+  # Look up acronyms and man pages. (@nsussman)
+  def wtf_command(stem, sender, reply_to, msg)
+    %x{wtf #{msg}}
   end
   
   def about_command(stem, sender, reply_to, msg)
-    'Lurch is a time-keeping bot (Autumn Leaf) developed by Mark Coates & Noah Sussman at ZepFrog Corp. http://zepfrog.com/development'
+    "#{options[:about_msg]}"
   end
   
   private
@@ -94,15 +108,20 @@ class Controller < Autumn::Leaf
   def init_slim_timer
     @timer = SlimTimer.new(options[:st_user], options[:st_password], options[:st_api_key])
   end
+  
   def synchronize_with_server(records)
     init_slim_timer
     task = nil
     records.each do |r|
-      task = @timer.create_task r.description, t.tags
-      sleep(1)
-      @timer.create_timeentry r.started_at, r.time_elapsed, task['id'], r.ended_at, r.tags
-      sleep(1)
+      task = @timer.create_task r.description, r.tags
+      @timer.create_timeentry r.created_at, r.total_time, task['id'], r.ended_at
     end
+  end
+  
+  def speed_bump(&block)
+    sleep(1)
+    yield
+    sleep(1)
   end
   
 end
@@ -110,8 +129,9 @@ end
 
 module Timing
   class Task < Object
-    attr_accessor :user, :description, :total_time, :ended_at, :started_at, :tags
+    attr_accessor :user, :description, :total_time, :created_at, :ended_at, :started_at, :paused_at, :pause_time, :tags
     def initialize(args={})
+      @created_at = Time.new
       @started_at = Time.new
       @user = args[:user]
       @description = args[:description]
@@ -119,16 +139,31 @@ module Timing
       @coworker_emails = args[:coworker_emails] || nil
       @reporter_emails = args[:reporter_emails] || nil
       @ended_at = nil
+      @paused_at = nil
       @total_time = 0
+      @pause_time = 0
       @tags = []
+    end
+    
+    def pause!(reason)
+      @total_time += (Time.new - @started_at)
+      @paused_at = Time.new
+    end
+    
+    def paused?
+      false if @paused_at.nil? else true
     end
     
     def end!(reason)
       @ended_at = Time.new
-      if @total_time
-        @total_time += time_elapsed
-      end
-      @total_time ||= time_elapsed
+      @total_time += @ended_at - @started_at
+    end
+    
+    def resume!(msg)
+      @pause_time += Time.new - @paused_at
+      @paused_at = nil
+      @started_at = Time.new
+      @ended_at = nil
     end
     
     def tag!(tag)
@@ -141,18 +176,14 @@ module Timing
     
     def time_elapsed
       if @ended_at.nil?
-        current_time - @started_at 
+        if @paused_at.nil?
+          current_time - @started_at 
+        else
+          @paused_at - @started_at
+        end
       else 
         @ended_at - @started_at
       end
-    end
-    
-    def tags
-      @tags || nil
-    end
-    
-    def tags=(array)
-      @tags = array
     end
     
     def coworker_emails
@@ -170,22 +201,14 @@ module Timing
     def reporter_emails=(array)
       @reporter_emails = array
     end
-    
-    def resume!(msg)
-      @started_at = Time.new
-      @ended_at = nil
-    end
   end
   class Interruption < Task
-    def initialize(args={})
-      @started_at = Time.now
-      @user = args[:user]
-      @description = args[:description]
-      @tags = args[:tags]
-      @coworker_emails = args[:coworker_emails] || nil
-      @reporter_emails = args[:reporter_emails] || nil
-      @ended_at = nil
-      @total_time = nil
+    def inititalize(args={})
+      super
+      @tags << 'interruption'
+    end
+    def tags
+      @tags.include?('interruption') ? @tags : @tags << 'interruption'
     end
   end
 end
